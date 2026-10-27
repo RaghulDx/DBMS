@@ -1,0 +1,18 @@
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+DO $$ BEGIN CREATE TYPE user_role AS ENUM ('CUSTOMER','MANAGER','ADMIN'); EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+DO $$ BEGIN CREATE TYPE order_status AS ENUM ('PENDING','PAID','SHIPPED','CANCELLED'); EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+CREATE TABLE IF NOT EXISTS users (id SERIAL PRIMARY KEY,email TEXT UNIQUE NOT NULL,password_hash TEXT NOT NULL,full_name TEXT NOT NULL,role user_role NOT NULL DEFAULT 'CUSTOMER',created_at TIMESTAMPTZ NOT NULL DEFAULT now());
+CREATE TABLE IF NOT EXISTS categories (id SERIAL PRIMARY KEY,name TEXT UNIQUE NOT NULL,slug TEXT UNIQUE NOT NULL);
+CREATE TABLE IF NOT EXISTS products (id SERIAL PRIMARY KEY,category_id INT NOT NULL REFERENCES categories(id),sku TEXT UNIQUE NOT NULL,name TEXT NOT NULL,stock_quantity INT NOT NULL DEFAULT 0 CHECK(stock_quantity>=0),created_at TIMESTAMPTZ NOT NULL DEFAULT now());
+CREATE TABLE IF NOT EXISTS product_price_history (id SERIAL PRIMARY KEY,product_id INT NOT NULL REFERENCES products(id),price NUMERIC(10,2) NOT NULL CHECK(price>=0),valid_from TIMESTAMPTZ NOT NULL,valid_to TIMESTAMPTZ NULL,CHECK(valid_to IS NULL OR valid_to>valid_from));
+CREATE TABLE IF NOT EXISTS orders (id SERIAL PRIMARY KEY,customer_id INT NOT NULL REFERENCES users(id),order_date TIMESTAMPTZ NOT NULL DEFAULT now(),total_amount NUMERIC(12,2) NOT NULL DEFAULT 0,status order_status NOT NULL DEFAULT 'PENDING');
+CREATE TABLE IF NOT EXISTS order_items (id SERIAL PRIMARY KEY,order_id INT NOT NULL REFERENCES orders(id) ON DELETE CASCADE,product_id INT NOT NULL REFERENCES products(id),historical_price_id INT NOT NULL REFERENCES product_price_history(id),quantity INT NOT NULL CHECK(quantity>0),subtotal NUMERIC(12,2) NOT NULL CHECK(subtotal>=0));
+CREATE TABLE IF NOT EXISTS ledger_transactions (id SERIAL PRIMARY KEY,order_id INT NOT NULL REFERENCES orders(id),amount NUMERIC(12,2) NOT NULL,prev_hash TEXT,curr_hash TEXT,created_at TIMESTAMPTZ NOT NULL DEFAULT now());
+CREATE TABLE IF NOT EXISTS inventory_logs (id SERIAL PRIMARY KEY,product_id INT NOT NULL REFERENCES products(id),changed_by_user_id INT NOT NULL REFERENCES users(id),qty_delta INT NOT NULL,reason TEXT NOT NULL,timestamp TIMESTAMPTZ NOT NULL DEFAULT now());
+CREATE INDEX IF NOT EXISTS idx_price_history_temporal ON product_price_history(product_id,valid_from,valid_to);
+CREATE INDEX IF NOT EXISTS idx_orders_customer ON orders(customer_id,order_date);
+CREATE OR REPLACE FUNCTION sp_get_product_price_at(p_id INT, query_time TIMESTAMPTZ) RETURNS NUMERIC AS $$ DECLARE matched_price NUMERIC; BEGIN SELECT price INTO matched_price FROM product_price_history WHERE product_id=p_id AND query_time>=valid_from AND (valid_to IS NULL OR query_time<valid_to) ORDER BY valid_from DESC LIMIT 1; RETURN COALESCE(matched_price,0.00); END; $$ LANGUAGE plpgsql;
+CREATE OR REPLACE FUNCTION fn_chain_ledger_transaction() RETURNS TRIGGER AS $$ DECLARE last_hash TEXT; BEGIN SELECT curr_hash INTO last_hash FROM ledger_transactions ORDER BY id DESC LIMIT 1; IF last_hash IS NULL THEN last_hash='0000000000000000000000000000000000000000000000000000000000000000'; END IF; NEW.prev_hash=last_hash; NEW.curr_hash=encode(digest(last_hash || NEW.order_id::text || NEW.amount::text || NEW.created_at::text,'sha256'),'hex'); RETURN NEW; END; $$ LANGUAGE plpgsql;
+DROP TRIGGER IF EXISTS trg_ledger_hash_chain ON ledger_transactions;
+CREATE TRIGGER trg_ledger_hash_chain BEFORE INSERT ON ledger_transactions FOR EACH ROW EXECUTE FUNCTION fn_chain_ledger_transaction();
+CREATE OR REPLACE VIEW current_product_prices AS SELECT DISTINCT ON(product_id) product_id,id AS price_history_id,price,valid_from FROM product_price_history WHERE valid_to IS NULL ORDER BY product_id,valid_from DESC;

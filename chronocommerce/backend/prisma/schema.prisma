@@ -1,0 +1,140 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum UserRole {
+  CUSTOMER
+  MANAGER
+  ADMIN
+
+  @@map("user_role")
+}
+
+enum OrderStatus {
+  PENDING
+  PAID
+  SHIPPED
+  CANCELLED
+
+  @@map("order_status")
+}
+
+model User {
+  id           Int      @id @default(autoincrement())
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  fullName     String   @map("full_name")
+  role         UserRole @default(CUSTOMER)
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  orders        Order[]
+  inventoryLogs InventoryLog[]
+
+  @@map("users")
+}
+
+model Category {
+  id   Int    @id @default(autoincrement())
+  name String @unique
+  slug String @unique
+
+  products Product[]
+
+  @@map("categories")
+}
+
+model Product {
+  id            Int      @id @default(autoincrement())
+  categoryId    Int      @map("category_id")
+  sku           String   @unique
+  name          String
+  stockQuantity Int      @default(0) @map("stock_quantity")
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  category      Category              @relation(fields: [categoryId], references: [id])
+  prices        ProductPriceHistory[]
+  orderItems    OrderItem[]
+  inventoryLogs InventoryLog[]
+
+  @@index([categoryId])
+  @@map("products")
+}
+
+model ProductPriceHistory {
+  id        Int       @id @default(autoincrement())
+  productId Int       @map("product_id")
+  price     Decimal   @db.Decimal(10, 2)
+  validFrom DateTime  @map("valid_from") @db.Timestamptz(6)
+  validTo   DateTime? @map("valid_to") @db.Timestamptz(6)
+
+  product    Product     @relation(fields: [productId], references: [id])
+  orderItems OrderItem[]
+
+  @@index([productId, validFrom, validTo])
+  @@map("product_price_history")
+}
+
+model Order {
+  id          Int         @id @default(autoincrement())
+  customerId  Int         @map("customer_id")
+  orderDate   DateTime    @default(now()) @map("order_date") @db.Timestamptz(6)
+  totalAmount Decimal     @default(0) @map("total_amount") @db.Decimal(12, 2)
+  status      OrderStatus @default(PENDING)
+
+  customer User               @relation(fields: [customerId], references: [id])
+  items    OrderItem[]
+  ledger   LedgerTransaction?
+
+  @@index([customerId, orderDate])
+  @@map("orders")
+}
+
+model OrderItem {
+  id                Int     @id @default(autoincrement())
+  orderId           Int     @map("order_id")
+  productId         Int     @map("product_id")
+  historicalPriceId Int     @map("historical_price_id")
+  quantity          Int
+  subtotal          Decimal @db.Decimal(10, 2)
+
+  order           Order               @relation(fields: [orderId], references: [id])
+  product         Product             @relation(fields: [productId], references: [id])
+  historicalPrice ProductPriceHistory @relation(fields: [historicalPriceId], references: [id])
+
+  @@index([orderId])
+  @@index([productId])
+  @@map("order_items")
+}
+
+model LedgerTransaction {
+  id        Int      @id @default(autoincrement())
+  orderId   Int      @unique @map("order_id")
+  amount    Decimal  @db.Decimal(10, 2)
+  prevHash  String?  @map("prev_hash")
+  currHash  String?  @map("curr_hash")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  order Order @relation(fields: [orderId], references: [id])
+
+  @@map("ledger_transactions")
+}
+
+model InventoryLog {
+  id              Int      @id @default(autoincrement())
+  productId       Int      @map("product_id")
+  changedByUserId Int      @map("changed_by_user_id")
+  qtyDelta        Int      @map("qty_delta")
+  reason          String
+  timestamp       DateTime @default(now()) @db.Timestamptz(6)
+
+  product       Product @relation(fields: [productId], references: [id])
+  changedByUser User    @relation(fields: [changedByUserId], references: [id])
+
+  @@index([productId, timestamp])
+  @@map("inventory_logs")
+}
