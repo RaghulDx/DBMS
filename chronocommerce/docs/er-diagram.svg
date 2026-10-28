@@ -1,0 +1,158 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1180 700" font-family="Helvetica, Arial, sans-serif">
+  <style>
+    .entity-title { font-size: 14px; font-weight: 700; fill: #1b1b17; }
+    .attr { font-size: 11.5px; fill: #1b1b17; }
+    .attr-fk { font-size: 11.5px; fill: #5c5a52; font-style: italic; }
+    .box { fill: #ffffff; stroke: #1b1b17; stroke-width: 1.2; }
+    .head { fill: #eef3ec; stroke: #1b1b17; stroke-width: 1.2; }
+    .rel { stroke: #2f5d3a; stroke-width: 1.3; fill: none; }
+    .card { font-size: 11px; fill: #2f5d3a; font-weight: 600; }
+    .pk-dot { fill: #8a5a1f; }
+  </style>
+
+  <rect x="0" y="0" width="1180" height="700" fill="#faf9f6"/>
+  <text x="20" y="24" font-size="16" font-weight="700" fill="#1b1b17">ChronoCommerce &#8211; Entity Relationship Diagram</text>
+
+  <!-- ===================== RELATIONSHIP LINES (drawn first, under boxes) ===================== -->
+  <!-- categories -> products -->
+  <path class="rel" d="M300,100 L420,113"/>
+  <text class="card" x="306" y="94">1</text>
+  <text class="card" x="398" y="107">N</text>
+
+  <!-- products -> product_price_history -->
+  <path class="rel" d="M480,186 L300,330 L300,266" fill="none"/>
+  <path class="rel" d="M480,186 L170,266"/>
+  <text class="card" x="486" y="200">1</text>
+  <text class="card" x="178" y="260">N</text>
+
+  <!-- products -> order_items -->
+  <path class="rel" d="M550,186 L550,266"/>
+  <text class="card" x="556" y="200">1</text>
+  <text class="card" x="556" y="260">N</text>
+
+  <!-- products -> inventory_logs (elbow) -->
+  <path class="rel" d="M620,186 L620,440 L170,440 L170,492"/>
+  <text class="card" x="626" y="200">1</text>
+  <text class="card" x="178" y="486">N</text>
+
+  <!-- users -> orders -->
+  <path class="rel" d="M930,186 L930,266"/>
+  <text class="card" x="936" y="200">1</text>
+  <text class="card" x="936" y="260">N</text>
+
+  <!-- users -> inventory_logs (elbow) -->
+  <path class="rel" d="M870,186 L870,430 L300,430 L300,492"/>
+  <text class="card" x="876" y="200">1</text>
+  <text class="card" x="306" y="486">N</text>
+
+  <!-- orders -> order_items -->
+  <path class="rel" d="M800,330 L680,339"/>
+  <text class="card" x="776" y="324">1</text>
+  <text class="card" x="686" y="333">N</text>
+
+  <!-- orders -> ledger_transactions -->
+  <path class="rel" d="M870,394 L550,492"/>
+  <text class="card" x="840" y="408">1</text>
+  <text class="card" x="556" y="486">0..1</text>
+
+  <!-- product_price_history -> order_items -->
+  <path class="rel" d="M300,330 L420,339"/>
+  <text class="card" x="306" y="324">1</text>
+  <text class="card" x="396" y="333">N</text>
+
+  <!-- ===================== ENTITY: categories ===================== -->
+  <g>
+    <rect class="box" x="40" y="40" width="260" height="120"/>
+    <rect class="head" x="40" y="40" width="260" height="28"/>
+    <text class="entity-title" x="52" y="59">categories</text>
+    <circle class="pk-dot" cx="52" cy="82" r="2.5"/><text class="attr" x="60" y="86">id (PK)</text>
+    <text class="attr" x="60" y="104">name &#8212; UNIQUE, NOT NULL</text>
+    <text class="attr" x="60" y="122">slug &#8212; UNIQUE, NOT NULL</text>
+  </g>
+
+  <!-- ===================== ENTITY: products ===================== -->
+  <g>
+    <rect class="box" x="420" y="40" width="260" height="146"/>
+    <rect class="head" x="420" y="40" width="260" height="28"/>
+    <text class="entity-title" x="432" y="59">products</text>
+    <circle class="pk-dot" cx="432" cy="82" r="2.5"/><text class="attr" x="440" y="86">id (PK)</text>
+    <text class="attr-fk" x="440" y="104">category_id (FK &#8594; categories)</text>
+    <text class="attr" x="440" y="122">sku &#8212; UNIQUE, NOT NULL</text>
+    <text class="attr" x="440" y="140">name, stock_quantity &#8212; CHECK &#8805;0</text>
+    <text class="attr" x="440" y="158">created_at</text>
+  </g>
+
+  <!-- ===================== ENTITY: users ===================== -->
+  <g>
+    <rect class="box" x="800" y="40" width="260" height="146"/>
+    <rect class="head" x="800" y="40" width="260" height="28"/>
+    <text class="entity-title" x="812" y="59">users</text>
+    <circle class="pk-dot" cx="812" cy="82" r="2.5"/><text class="attr" x="820" y="86">id (PK)</text>
+    <text class="attr" x="820" y="104">email &#8212; UNIQUE, NOT NULL</text>
+    <text class="attr" x="820" y="122">password_hash (bcrypt)</text>
+    <text class="attr" x="820" y="140">full_name, role (CUSTOMER/MANAGER/ADMIN)</text>
+    <text class="attr" x="820" y="158">created_at</text>
+  </g>
+
+  <!-- ===================== ENTITY: product_price_history ===================== -->
+  <g>
+    <rect class="box" x="40" y="266" width="260" height="128"/>
+    <rect class="head" x="40" y="266" width="260" height="28"/>
+    <text class="entity-title" x="52" y="285">product_price_history</text>
+    <circle class="pk-dot" cx="52" cy="308" r="2.5"/><text class="attr" x="60" y="312">id (PK)</text>
+    <text class="attr-fk" x="60" y="330">product_id (FK &#8594; products)</text>
+    <text class="attr" x="60" y="348">price &#8212; CHECK &#8805;0</text>
+    <text class="attr" x="60" y="366">valid_from, valid_to &#8212; no overlap (GiST)</text>
+  </g>
+
+  <!-- ===================== ENTITY: order_items ===================== -->
+  <g>
+    <rect class="box" x="420" y="266" width="260" height="146"/>
+    <rect class="head" x="420" y="266" width="260" height="28"/>
+    <text class="entity-title" x="432" y="285">order_items</text>
+    <circle class="pk-dot" cx="432" cy="308" r="2.5"/><text class="attr" x="440" y="312">id (PK)</text>
+    <text class="attr-fk" x="440" y="330">order_id (FK &#8594; orders)</text>
+    <text class="attr-fk" x="440" y="348">product_id (FK &#8594; products)</text>
+    <text class="attr-fk" x="440" y="366">historical_price_id (FK &#8594; product_price_history)</text>
+    <text class="attr" x="440" y="384">quantity, subtotal &#8212; CHECK &gt;0</text>
+  </g>
+
+  <!-- ===================== ENTITY: orders ===================== -->
+  <g>
+    <rect class="box" x="800" y="266" width="260" height="128"/>
+    <rect class="head" x="800" y="266" width="260" height="28"/>
+    <text class="entity-title" x="812" y="285">orders</text>
+    <circle class="pk-dot" cx="812" cy="308" r="2.5"/><text class="attr" x="820" y="312">id (PK)</text>
+    <text class="attr-fk" x="820" y="330">customer_id (FK &#8594; users)</text>
+    <text class="attr" x="820" y="348">order_date, total_amount</text>
+    <text class="attr" x="820" y="366">status (PENDING/PAID/SHIPPED/CANCELLED)</text>
+  </g>
+
+  <!-- ===================== ENTITY: inventory_logs ===================== -->
+  <g>
+    <rect class="box" x="40" y="492" width="260" height="146"/>
+    <rect class="head" x="40" y="492" width="260" height="28"/>
+    <text class="entity-title" x="52" y="511">inventory_logs</text>
+    <circle class="pk-dot" cx="52" cy="534" r="2.5"/><text class="attr" x="60" y="538">id (PK)</text>
+    <text class="attr-fk" x="60" y="556">product_id (FK &#8594; products)</text>
+    <text class="attr-fk" x="60" y="574">changed_by_user_id (FK &#8594; users)</text>
+    <text class="attr" x="60" y="592">qty_delta, reason, timestamp</text>
+  </g>
+
+  <!-- ===================== ENTITY: ledger_transactions ===================== -->
+  <g>
+    <rect class="box" x="420" y="492" width="260" height="146"/>
+    <rect class="head" x="420" y="492" width="260" height="28"/>
+    <text class="entity-title" x="432" y="511">ledger_transactions</text>
+    <circle class="pk-dot" cx="432" cy="534" r="2.5"/><text class="attr" x="440" y="538">id (PK)</text>
+    <text class="attr-fk" x="440" y="556">order_id (FK &#8594; orders, UNIQUE)</text>
+    <text class="attr" x="440" y="574">amount, prev_hash, curr_hash (SHA-256)</text>
+    <text class="attr" x="440" y="592">created_at &#8212; append-only (no UPDATE/DELETE)</text>
+  </g>
+
+  <!-- Legend -->
+  <g>
+    <text x="800" y="630" font-size="11.5" fill="#5c5a52">Notation: lines show FK relationships, labelled with cardinality (1, N, 0..1).</text>
+    <text x="800" y="648" font-size="11.5" fill="#5c5a52">Italic attributes are foreign keys. Dot marks the primary key.</text>
+  </g>
+</svg>

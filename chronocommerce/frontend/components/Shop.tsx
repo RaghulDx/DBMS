@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { api, money, Session } from '../lib/api';
+import Pager from './Pager';
 
 export default function Shop({ session }: { session: Session }) {
   const [products, setProducts] = useState<any[]>([]);
@@ -10,12 +11,19 @@ export default function Shop({ session }: { session: Session }) {
   const [cart, setCart] = useState<Record<number, number>>({});
   const [orders, setOrders] = useState<any[]>([]);
   const [msg, setMsg] = useState('');
+  const [productPage, setProductPage] = useState(1);
+  const [productPages, setProductPages] = useState(1);
+  const [orderPage, setOrderPage] = useState(1);
+  const [orderPages, setOrderPages] = useState(1);
 
-  const loadProducts = () => api(`/api/products?category=${cat}&q=${encodeURIComponent(q)}`).then(setProducts).catch(e => setMsg(e.message));
-  const loadOrders = () => session && api('/api/orders', { token: session.token }).then(setOrders).catch(() => {});
+  const loadProducts = () => api(`/api/products?category=${cat}&q=${encodeURIComponent(q)}&page=${productPage}`)
+    .then(r => { setProducts(r.items); setProductPages(r.totalPages); }).catch(e => setMsg(e.message));
+  const loadOrders = () => session && api(`/api/orders?page=${orderPage}`, { token: session.token })
+    .then(r => { setOrders(r.items); setOrderPages(r.totalPages); }).catch(() => {});
   useEffect(() => { api('/api/categories').then(setCats); }, []);
-  useEffect(() => { loadProducts(); }, [cat, q]);
-  useEffect(() => { loadOrders(); }, [session]);
+  useEffect(() => { setProductPage(1); }, [cat, q]);
+  useEffect(() => { loadProducts(); }, [cat, q, productPage]);
+  useEffect(() => { loadOrders(); }, [session, orderPage]);
 
   const lines = Object.entries(cart).filter(([, n]) => n > 0).map(([id, n]) => ({ productId: Number(id), quantity: n }));
   const total = lines.reduce((s, l) => s + Number(products.find(p => p.id === l.productId)?.currentPrice ?? 0) * l.quantity, 0);
@@ -39,6 +47,7 @@ export default function Shop({ session }: { session: Session }) {
           <button disabled={!session || p.stockQuantity < 1 || p.currentPrice == null} onClick={() => setCart({ ...cart, [p.id]: (cart[p.id] ?? 0) + 1 })}>Add</button></div>
       </div>)}
       {!session && <p className="muted">Sign in to place orders.</p>}
+      <Pager page={productPage} totalPages={productPages} onChange={setProductPage} />
     </section>
     {session && <section><h2>Cart</h2>
       {lines.length === 0 ? <p className="muted">Empty.</p> : <>
@@ -50,6 +59,7 @@ export default function Shop({ session }: { session: Session }) {
     {session && <section><h2>{session.user.role === 'CUSTOMER' ? 'My orders' : 'All orders'}</h2>
       {orders.map(o => <div key={o.id} className="card"><div><b>#{o.id}</b> · {o.status} · {new Date(o.orderDate).toLocaleString()}<br />
         <span>{o.items.map((i: any) => `${i.product.name} ×${i.quantity} @ ${money(i.historicalPrice.price)}`).join(', ')}</span></div><b>{money(o.totalAmount)}</b></div>)}
+      <Pager page={orderPage} totalPages={orderPages} onChange={setOrderPage} />
     </section>}
   </>;
 }
