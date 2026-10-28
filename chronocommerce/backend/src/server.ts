@@ -38,6 +38,16 @@ const h = (fn: (req: AuthedRequest, res: Response) => Promise<unknown>) => (req:
 
 const json = (data: unknown) => JSON.parse(JSON.stringify(data, (_, v) => (typeof v === 'bigint' ? Number(v) : v)));
 
+// page/pageSize query params -> {page, pageSize, skip}, clamped to sane bounds
+const pageParams = (req: Request, defaultSize = 20, maxSize = 100) => {
+  const page = Math.max(1, Math.trunc(Number(req.query.page)) || 1);
+  const pageSize = Math.min(maxSize, Math.max(1, Math.trunc(Number(req.query.pageSize)) || defaultSize));
+  return { page, pageSize, skip: (page - 1) * pageSize };
+};
+const paginated = <T>(items: T[], page: number, pageSize: number, total: number) => ({
+  items, page, pageSize, total, totalPages: Math.max(1, Math.ceil(total / pageSize)),
+});
+
 // ---------- auth ----------
 app.get('/api/health', (_, res) => res.json({ ok: true }));
 
@@ -63,17 +73,18 @@ app.get('/api/categories', h(async (_, res) => res.json(await prisma.category.fi
 app.get('/api/products', h(async (req, res) => {
   const cat = typeof req.query.category === 'string' ? req.query.category : undefined;
   const q = typeof req.query.q === 'string' ? req.query.q : undefined;
-  const products = await prisma.product.findMany({
-    where: {
-      ...(cat ? { category: { slug: cat } } : {}),
-      ...(q ? { name: { contains: q, mode: 'insensitive' as const } } : {}),
-    },
-    include: { category: true },
-    orderBy: { id: 'asc' },
-  });
+  const { page, pageSize, skip } = pageParams(req, 10);
+  const where = {
+    ...(cat ? { category: { slug: cat } } : {}),
+    ...(q ? { name: { contains: q, mode: 'insensitive' as const } } : {}),
+  };
+  const [total, products] = await Promise.all([
+    prisma.product.count({ where }),
+    prisma.product.findMany({ where, include: { category: true }, orderBy: { id: 'asc' }, skip, take: pageSize }),
+  ]);
   const prices = await prisma.$queryRaw<{ product_id: number; price: string }[]>`SELECT product_id, price FROM current_product_prices`;
   const map = new Map(prices.map((p) => [p.product_id, p.price]));
-  res.json(json(products.map((p) => ({ ...p, currentPrice: map.get(p.id) ?? null }))));
+  res.json(json(paginated(products.map((p) => ({ ...p, currentPrice: map.get(p.id) ?? null })), page, pageSize, total)));
 }));
 
 // time travel: price at an arbitrary instant (stored procedure)
@@ -115,13 +126,18 @@ app.post('/api/orders/:id/pay', auth, h(async (req, res) => {
 
 app.get('/api/orders', auth, h(async (req, res) => {
   const staff = req.user!.role !== 'CUSTOMER';
-  const orders = await prisma.order.findMany({
-    where: staff ? {} : { customerId: req.user!.id },
-    include: { items: { include: { product: true, historicalPrice: true } } },
-    orderBy: { id: 'desc' },
-    take: 100,
-  });
-  res.json(json(orders));
+  const where = staff ? {} : { customerId: req.user!.id };
+  const { page, pageSize, skip } = pageParams(req, 10);
+  const [total, orders] = await Promise.all([
+    prisma.order.count({ where }),
+    prisma.order.findMany({
+      where,
+      include: { items: { include: { product: true, historicalPrice: true } } },
+      orderBy: { id: 'desc' },
+      skip, take: pageSize,
+    }),
+  ]);
+  res.json(json(paginated(orders, page, pageSize, total)));
 }));
 
 // ---------- inventory ----------
