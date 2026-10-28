@@ -212,3 +212,19 @@ form input{width:260px}
 }
 .pager button:hover{border-color:var(--ink);opacity:1}
 .pager .muted{font-size:12.5px}
+
+@media (max-width: 640px){
+  main{padding:0 16px 48px}
+  header{padding-top:24px}
+  h1{font-size:26px}
+  header > p{font-size:13px}
+  nav{gap:14px}
+  .who{margin-left:0;width:100%;order:3;padding-top:10px;border-top:1px solid var(--hairline);margin-top:4px}
+  section{padding:16px}
+  .card{flex-direction:column;align-items:flex-start;gap:8px}
+  .card .right{text-align:left;width:100%;display:flex;align-items:center;justify-content:space-between}
+  select,input{width:100%;margin-left:0}
+  form input{width:100%}
+  table{display:block;overflow-x:auto;white-space:nowrap}
+  .pager{flex-wrap:wrap}
+}
