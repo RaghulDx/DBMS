@@ -4,6 +4,18 @@ Bi-temporal e-commerce engine: PostgreSQL system-versioned pricing + an append-o
 SHA-256 hash-chained audit ledger. Built for Database Systems (BCSE307L) — see
 [`docs/project-proposal.md`](docs/project-proposal.md) for the full proposal.
 
+## Live deployment
+
+| Service | URL |
+|---|---|
+| Frontend (Vercel) | https://dbms-3ts4.vercel.app/ |
+| Backend API (Render) | https://chronocommerce-backend.onrender.com |
+| Database | Render PostgreSQL 18 (Ohio) |
+
+Seed logins (password `Password123!`): `admin@chrono.test`, `manager@chrono.test`,
+`customer@chrono.test`. Render's free tier spins down after inactivity, so the first request
+after a while may take 30-60s to wake up.
+
 ## Project description
 
 Most e-commerce schemas overwrite a product's price in place and log payments in an ordinary,
@@ -102,6 +114,16 @@ DATABASE_URL=postgresql://postgres:postgres@localhost:5432/chronocommerce script
 #   -> writes backups/chronocommerce-<timestamp>.dump (pg_dump, custom format)
 scripts/restore.sh backups/chronocommerce-<timestamp>.dump
 #   -> pg_restore --clean --if-exists
+```
+
+## Docker images
+Published to Docker Hub:
+- https://hub.docker.com/r/raghul1612/chronocommerce-backend
+- https://hub.docker.com/r/raghul1612/chronocommerce-frontend
+
+```bash
+docker pull raghul1612/chronocommerce-backend
+docker pull raghul1612/chronocommerce-frontend
 ```
 
 ## Documentation
