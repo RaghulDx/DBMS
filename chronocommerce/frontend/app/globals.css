@@ -201,3 +201,14 @@ td{text-align:left;padding:9px 10px 9px 2px;border-bottom:1px solid var(--hairli
 
 form{display:flex;flex-direction:column;align-items:flex-start;gap:2px}
 form input{width:260px}
+
+.pager{display:flex;align-items:center;gap:14px;margin-top:16px;padding-top:14px;border-top:1px solid var(--hairline)}
+.pager button{
+  border:1px solid var(--hairline);
+  background:var(--surface);
+  color:var(--ink);
+  font-size:12.5px;
+  padding:6px 12px;
+}
+.pager button:hover{border-color:var(--ink);opacity:1}
+.pager .muted{font-size:12.5px}
